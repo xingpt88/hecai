@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 // 数据定义
 const TIANGAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
@@ -97,6 +97,8 @@ export default function HeCaiApp() {
   const [asset, setAsset] = useState('BTC');
   const [result, setResult] = useState(null);
   const [animScore, setAnimScore] = useState(0);
+  const [showShareCard, setShowShareCard] = useState(false);
+  const shareCardRef = useRef(null);
 
   useEffect(() => {
     if (result && step === 1) {
@@ -127,6 +129,41 @@ export default function HeCaiApp() {
       </select>
     </div>
   );
+
+  const handleShare = async () => {
+    setShowShareCard(true);
+  };
+
+  const downloadCard = async () => {
+    if (!shareCardRef.current) return;
+    try {
+      const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/+esm')).default;
+      const canvas = await html2canvas(shareCardRef.current, {
+        backgroundColor: '#0a0a0a',
+        scale: 2,
+        useCORS: true,
+      });
+      const link = document.createElement('a');
+      link.download = `合财测试-${result.score}分.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (e) {
+      // Fallback: 直接截图提示
+      alert('请长按卡片保存图片，或截图分享～');
+    }
+  };
+
+  const shareToSocial = async () => {
+    const text = `我的合财测试得分 ${result.score} 分！${result.verdict.text} ${result.verdict.emoji}\n\n${WUXING_DATA[result.dm1].emoji} 我是${WUXING_DATA[result.dm1].energy}\n${WUXING_DATA[result.dm2].emoji} ta是${WUXING_DATA[result.dm2].energy}\n\n测测你该不该听朋友的投资建议 👉 hecai.trade`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: '合财测试', text });
+      } catch (e) {}
+    } else {
+      navigator.clipboard.writeText(text);
+      alert('已复制到剪贴板！');
+    }
+  };
 
   return (
     <div className="app">
@@ -621,6 +658,217 @@ export default function HeCaiApp() {
           padding: 20px;
           line-height: 1.6;
         }
+        
+        /* Share Card Modal */
+        .share-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.9);
+          backdrop-filter: blur(10px);
+          z-index: 1000;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+          animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        
+        .share-card {
+          width: 340px;
+          background: linear-gradient(165deg, #1a1025 0%, #0f0a15 50%, #0a0510 100%);
+          border-radius: 24px;
+          padding: 32px 24px;
+          position: relative;
+          overflow: hidden;
+          box-shadow: 0 25px 80px rgba(124, 58, 237, 0.3), 0 0 0 1px rgba(255,255,255,0.1);
+        }
+        
+        .share-card::before {
+          content: '';
+          position: absolute;
+          top: -50%;
+          left: -50%;
+          width: 200%;
+          height: 200%;
+          background: radial-gradient(ellipse at 30% 20%, rgba(124, 58, 237, 0.15) 0%, transparent 50%),
+                      radial-gradient(ellipse at 70% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
+          pointer-events: none;
+        }
+        
+        .share-card-content {
+          position: relative;
+          z-index: 1;
+        }
+        
+        .share-card-header {
+          text-align: center;
+          margin-bottom: 24px;
+        }
+        
+        .share-card-logo {
+          font-size: 2.5rem;
+          margin-bottom: 8px;
+        }
+        
+        .share-card-title {
+          font-size: 1.1rem;
+          font-weight: 600;
+          color: #a1a1aa;
+          letter-spacing: 0.1em;
+        }
+        
+        .share-card-score {
+          text-align: center;
+          margin-bottom: 24px;
+        }
+        
+        .share-score-num {
+          font-size: 5rem;
+          font-weight: 800;
+          line-height: 1;
+          background: var(--card-gradient);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+        
+        .share-score-label {
+          font-size: 1.5rem;
+          font-weight: 700;
+          margin-top: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+        }
+        
+        .share-card-personas {
+          display: flex;
+          justify-content: center;
+          gap: 16px;
+          margin-bottom: 24px;
+        }
+        
+        .share-persona {
+          text-align: center;
+          padding: 16px;
+          background: rgba(255,255,255,0.05);
+          border-radius: 16px;
+          flex: 1;
+        }
+        
+        .share-persona-emoji {
+          font-size: 2rem;
+          margin-bottom: 6px;
+        }
+        
+        .share-persona-label {
+          font-size: 0.65rem;
+          color: #71717a;
+          margin-bottom: 4px;
+        }
+        
+        .share-persona-type {
+          font-size: 0.9rem;
+          font-weight: 600;
+        }
+        
+        .share-card-asset {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          padding: 14px;
+          background: rgba(255,255,255,0.05);
+          border-radius: 12px;
+          margin-bottom: 20px;
+        }
+        
+        .share-asset-icon {
+          font-size: 1.8rem;
+        }
+        
+        .share-asset-name {
+          font-size: 1rem;
+          font-weight: 600;
+        }
+        
+        .share-card-footer {
+          text-align: center;
+          padding-top: 16px;
+          border-top: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .share-card-url {
+          font-size: 0.85rem;
+          color: #a78bfa;
+          font-weight: 500;
+        }
+        
+        .share-card-slogan {
+          font-size: 0.7rem;
+          color: #52525b;
+          margin-top: 6px;
+        }
+        
+        .share-actions {
+          display: flex;
+          gap: 10px;
+          margin-top: 20px;
+          width: 340px;
+        }
+        
+        .share-actions button {
+          flex: 1;
+          padding: 14px;
+          border-radius: 12px;
+          font-family: 'Outfit', sans-serif;
+          font-size: 0.9rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        
+        .btn-download {
+          background: #fff;
+          color: #000;
+          border: none;
+        }
+        
+        .btn-download:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(255,255,255,0.2);
+        }
+        
+        .btn-copy {
+          background: transparent;
+          color: #fff;
+          border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .btn-copy:hover {
+          background: rgba(255,255,255,0.1);
+        }
+        
+        .btn-close-share {
+          margin-top: 16px;
+          background: none;
+          border: none;
+          color: #71717a;
+          font-size: 0.85rem;
+          cursor: pointer;
+          padding: 10px 20px;
+        }
+        
+        .btn-close-share:hover {
+          color: #fff;
+        }
       `}</style>
 
       <div className="container">
@@ -644,7 +892,7 @@ export default function HeCaiApp() {
                 <SelectWheel label="年" value={you.year} onChange={v => setYou({...you, year: v})} options={Array.from({length:50}, (_,i) => ({v: 2006-i, l: 2006-i}))} />
                 <SelectWheel label="月" value={you.month} onChange={v => setYou({...you, month: v})} options={Array.from({length:12}, (_,i) => ({v: i+1, l: `${i+1}月`}))} />
                 <SelectWheel label="日" value={you.day} onChange={v => setYou({...you, day: v})} options={Array.from({length:31}, (_,i) => ({v: i+1, l: i+1}))} />
-                <SelectWheel label="时" value={you.hour} onChange={v => setYou({...you, hour: v})} options={[[0,'子'],[2,'丑'],[4,'寅'],[6,'卯'],[8,'辰'],[10,'巳'],[12,'午'],[14,'未'],[16,'申'],[18,'酉'],[20,'戌'],[22,'亥']].map(([v,n]) => ({v, l: `${n}时`}))} />
+                <SelectWheel label="时" value={you.hour} onChange={v => setYou({...you, hour: v})} options={[[0,'23-1点'],[2,'1-3点'],[4,'3-5点'],[6,'5-7点'],[8,'7-9点'],[10,'9-11点'],[12,'11-13点'],[14,'13-15点'],[16,'15-17点'],[18,'17-19点'],[20,'19-21点'],[22,'21-23点']].map(([v,n]) => ({v, l: n}))} />
               </div>
             </section>
 
@@ -660,7 +908,7 @@ export default function HeCaiApp() {
                 <SelectWheel label="年" value={them.year} onChange={v => setThem({...them, year: v})} options={Array.from({length:50}, (_,i) => ({v: 2006-i, l: 2006-i}))} />
                 <SelectWheel label="月" value={them.month} onChange={v => setThem({...them, month: v})} options={Array.from({length:12}, (_,i) => ({v: i+1, l: `${i+1}月`}))} />
                 <SelectWheel label="日" value={them.day} onChange={v => setThem({...them, day: v})} options={Array.from({length:31}, (_,i) => ({v: i+1, l: i+1}))} />
-                <SelectWheel label="时" value={them.hour} onChange={v => setThem({...them, hour: v})} options={[[0,'子'],[2,'丑'],[4,'寅'],[6,'卯'],[8,'辰'],[10,'巳'],[12,'午'],[14,'未'],[16,'申'],[18,'酉'],[20,'戌'],[22,'亥']].map(([v,n]) => ({v, l: `${n}时`}))} />
+                <SelectWheel label="时" value={them.hour} onChange={v => setThem({...them, hour: v})} options={[[0,'23-1点'],[2,'1-3点'],[4,'3-5点'],[6,'5-7点'],[8,'7-9点'],[10,'9-11点'],[12,'11-13点'],[14,'13-15点'],[16,'15-17点'],[18,'17-19点'],[20,'19-21点'],[22,'21-23点']].map(([v,n]) => ({v, l: n}))} />
               </div>
             </section>
 
@@ -777,16 +1025,64 @@ export default function HeCaiApp() {
 
             <div className="action-grid">
               <button className="btn-ghost" onClick={() => setStep(0)}>重新测算</button>
-              <button className="btn-share" onClick={() => {
-                const t = `我的合财测试得分 ${result.score} 分！${result.verdict.text} ${result.verdict.emoji}\n快来测测该不该听朋友的投资建议～`;
-                navigator.share ? navigator.share({title: '合财测试', text: t}) : (navigator.clipboard.writeText(t), alert('已复制!'));
-              }}>分享结果 📤</button>
+              <button className="btn-share" onClick={handleShare}>生成分享卡片 📤</button>
             </div>
 
             <p className="disclaimer">⚠️ 本测试仅供娱乐，不构成任何投资建议<br/>投资有风险，入市需谨慎</p>
           </>
         )}
       </div>
+
+      {/* 分享卡片弹窗 */}
+      {showShareCard && result && (
+        <div className="share-overlay" onClick={(e) => e.target === e.currentTarget && setShowShareCard(false)}>
+          <div className="share-card" ref={shareCardRef} style={{'--card-gradient': result.verdict.gradient}}>
+            <div className="share-card-content">
+              <div className="share-card-header">
+                <div className="share-card-logo">💰</div>
+                <div className="share-card-title">合 财 测 试</div>
+              </div>
+              
+              <div className="share-card-score">
+                <div className="share-score-num">{result.score}</div>
+                <div className="share-score-label" style={{color: result.verdict.color}}>
+                  {result.verdict.emoji} {result.verdict.text}
+                </div>
+              </div>
+              
+              <div className="share-card-personas">
+                <div className="share-persona">
+                  <div className="share-persona-emoji">{WUXING_DATA[result.dm1].emoji}</div>
+                  <div className="share-persona-label">我</div>
+                  <div className="share-persona-type">{WUXING_DATA[result.dm1].energy}</div>
+                </div>
+                <div className="share-persona">
+                  <div className="share-persona-emoji">{WUXING_DATA[result.dm2].emoji}</div>
+                  <div className="share-persona-label">ta</div>
+                  <div className="share-persona-type">{WUXING_DATA[result.dm2].energy}</div>
+                </div>
+              </div>
+              
+              <div className="share-card-asset">
+                <span className="share-asset-icon">{ASSETS[asset].icon}</span>
+                <span className="share-asset-name">讨论标的：{ASSETS[asset].name}</span>
+              </div>
+              
+              <div className="share-card-footer">
+                <div className="share-card-url">hecai.trade</div>
+                <div className="share-card-slogan">测测该不该听朋友的投资建议</div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="share-actions">
+            <button className="btn-download" onClick={downloadCard}>保存图片 📥</button>
+            <button className="btn-copy" onClick={shareToSocial}>复制文案 📋</button>
+          </div>
+          
+          <button className="btn-close-share" onClick={() => setShowShareCard(false)}>关闭</button>
+        </div>
+      )}
     </div>
   );
 }
