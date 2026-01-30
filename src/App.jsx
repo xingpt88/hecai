@@ -46,47 +46,205 @@ function getBazi(year, month, day, hour) {
   return { year: { gan: yearGan, zhi: yearZhi }, month: { gan: monthGan, zhi: monthZhi }, day: { gan: dayGan, zhi: dayZhi }, hour: { gan: hourGan, zhi: hourZhi }, dayMaster: dayGan };
 }
 
+// 分析个人与标的的命理关系（用于35%你与标的、25%ta与标的）
 function analyzeAssetMatch(dayMaster, assetWuxing) {
-  if (dayMaster === assetWuxing) return { score: 10, level: '比肩', desc: '同属性，懂它但难暴富', tag: '稳', color: '#a78bfa' };
-  if (XIANGSHENG[dayMaster] === assetWuxing) return { score: 8, level: '食伤', desc: '能驾驭它，适合主动操作', tag: '宜', color: '#60a5fa' };
-  if (XIANGSHENG_REV[dayMaster] === assetWuxing) return { score: 5, level: '印星', desc: '它能帮你，需要耐心', tag: '缓', color: '#fbbf24' };
-  if (XIANGKE[dayMaster] === assetWuxing) return { score: 15, level: '正财', desc: '天生财星！机会吃大肉', tag: '旺', color: '#4ade80' };
-  return { score: -5, level: '七杀', desc: '它克你，容易被割', tag: '险', color: '#f87171' };
+  // 计算此人的财星（克我者为财）
+  const myWealth = XIANGKE[dayMaster]; // 我克者为财
+  
+  // 标的是我的财星 → 大吉
+  if (assetWuxing === myWealth) {
+    return { score: 100, level: '正财', desc: '天生财星！有机会吃到大肉', tag: '旺', color: '#4ade80' };
+  }
+  // 标的生我的财星 → 中吉（间接生财）
+  if (XIANGSHENG[assetWuxing] === myWealth) {
+    return { score: 75, level: '偏财', desc: '间接生财，把握机会能赚', tag: '吉', color: '#22d3ee' };
+  }
+  // 标的是食伤（我生者）→ 中等，能驾驭但要付出
+  if (XIANGSHENG[dayMaster] === assetWuxing) {
+    return { score: 60, level: '食伤', desc: '能驾驭它，但需主动出击', tag: '宜', color: '#60a5fa' };
+  }
+  // 标的与我同属性（比劫）→ 平，竞争关系
+  if (dayMaster === assetWuxing) {
+    return { score: 45, level: '比肩', desc: '同属性，懂它但竞争大', tag: '平', color: '#a78bfa' };
+  }
+  // 标的是印星（生我者）→ 小凶，财克印
+  if (XIANGSHENG_REV[dayMaster] === assetWuxing) {
+    return { score: 30, level: '印星', desc: '财印相克，操作易纠结', tag: '缓', color: '#fbbf24' };
+  }
+  // 标的是官杀（克我者）→ 凶，压力大
+  return { score: 15, level: '七杀', desc: '它克你，容易被收割', tag: '险', color: '#f87171' };
 }
 
+// 分析两人的财运贵人关系（25%权重）
+function analyzeRelationship(dm1, dm2, assetWuxing) {
+  const yourWealth = XIANGKE[dm1]; // 你的财星
+  
+  let score = 50, insight = null;
+  
+  // ta的日主就是你的财星 → 大贵人！ta本身带财给你
+  if (dm2 === yourWealth) {
+    score = 100;
+    insight = { type: 'great', title: '财运贵人', desc: `ta属${dm2}正是你的财星，ta的建议自带财气加持` };
+  }
+  // ta的日主生你的财星 → 贵人，间接助你发财
+  else if (XIANGSHENG[dm2] === yourWealth) {
+    score = 85;
+    insight = { type: 'great', title: '间接贵人', desc: `ta的${dm2}生你的财星${yourWealth}，建议有助于你获财` };
+  }
+  // ta的日主与标的相同 → ta对这个标的有天然感应
+  else if (dm2 === assetWuxing) {
+    score = 75;
+    insight = { type: 'good', title: '标的共鸣', desc: `ta属${dm2}与${assetWuxing}标的同频，对它有直觉` };
+  }
+  // 同属性 → 想法相近
+  else if (dm1 === dm2) {
+    score = 60;
+    insight = { type: 'good', title: '同频共振', desc: `都是${dm1}命，投资理念相近，容易达成共识` };
+  }
+  // ta生你 → 有帮助但不是财运方面
+  else if (XIANGSHENG[dm2] === dm1) {
+    score = 55;
+    insight = { type: 'neutral', title: '能量支持', desc: `ta的${dm2}生你的${dm1}，有好意但未必懂你的财` };
+  }
+  // 你生ta → 你的能量流向ta
+  else if (XIANGSHENG[dm1] === dm2) {
+    score = 40;
+    insight = { type: 'warn', title: '能量外泄', desc: `你的${dm1}生ta的${dm2}，跟ta合作你付出更多` };
+  }
+  // ta克你 → 小人，建议可能有坑
+  else if (XIANGKE[dm2] === dm1) {
+    score = 20;
+    insight = { type: 'bad', title: '气场相克', desc: `ta的${dm2}克你的${dm1}，ta的建议可能不适合你` };
+  }
+  // 你克ta → ta被你压制，建议打折
+  else if (XIANGKE[dm1] === dm2) {
+    score = 35;
+    insight = { type: 'warn', title: '气场压制', desc: `你克ta，ta在你面前可能没说真心话` };
+  }
+  // 其他关系
+  else {
+    score = 50;
+    insight = { type: 'neutral', title: '关系中性', desc: `${dm1}与${dm2}无直接生克，建议客观参考` };
+  }
+  
+  return { score, insight };
+}
+
+// 分析日期择时（15%权重）
+function analyzeDateTiming(dateGan, dm1, assetWuxing) {
+  const dateW = WUXING[dateGan];
+  const yourWealth = XIANGKE[dm1];
+  
+  let score = 50, text = '';
+  
+  // 日期生你的财星 → 大吉日
+  if (XIANGSHENG[dateW] === yourWealth) {
+    score = 100;
+    text = `${dateGan}日属${dateW}，生旺你的财星，是行动吉日`;
+  }
+  // 日期与标的相同 → 能量共振
+  else if (dateW === assetWuxing) {
+    score = 80;
+    text = `${dateGan}日与标的同属${dateW}，能量共振，可以关注`;
+  }
+  // 日期生你 → 中吉
+  else if (XIANGSHENG[dateW] === dm1) {
+    score = 70;
+    text = `${dateGan}日属${dateW}生你，精力充沛，判断力佳`;
+  }
+  // 日期生标的 → 小吉
+  else if (XIANGSHENG[dateW] === assetWuxing) {
+    score = 65;
+    text = `${dateGan}日生旺${assetWuxing}标的，标的有上涨能量`;
+  }
+  // 日期克你 → 凶日
+  else if (XIANGKE[dateW] === dm1) {
+    score = 20;
+    text = `${dateGan}日属${dateW}克你，今日决策易冲动，建议缓几天`;
+  }
+  // 日期克标的 → 小凶
+  else if (XIANGKE[dateW] === assetWuxing) {
+    score = 35;
+    text = `${dateGan}日克制${assetWuxing}标的，标的短期可能承压`;
+  }
+  // 中性
+  else {
+    score = 50;
+    text = `${dateGan}日属${dateW}，能量中性，无特别吉凶`;
+  }
+  
+  return { score, text, dateW };
+}
+
+// 主计算函数：按权重汇总
 function calculateCompatibility(bazi1, bazi2, date, assetKey) {
   const dm1 = WUXING[bazi1.dayMaster], dm2 = WUXING[bazi2.dayMaster];
   const asset = ASSETS[assetKey];
-  let score = 50, insights = [];
-
-  if (dm1 === dm2) { score += 12; insights.push({ type: 'good', title: '同频共振', desc: `都是${dm1}命，投资DNA相似，容易想到一块` }); }
-  else if (XIANGSHENG[dm1] === dm2) { score += 18; insights.push({ type: 'great', title: '能量加持', desc: `你的${dm1}生ta的${dm2}，你的建议会放大ta的财运` }); }
-  else if (XIANGSHENG[dm2] === dm1) { score += 15; insights.push({ type: 'great', title: '贵人相助', desc: `ta的${dm2}生你的${dm1}，ta的建议对你有加成` }); }
-  else if (XIANGKE[dm1] === dm2) { score -= 8; insights.push({ type: 'warn', title: '理念冲突', desc: `${dm1}克${dm2}，你俩看问题角度很不一样` }); }
-  else if (XIANGKE[dm2] === dm1) { score -= 12; insights.push({ type: 'bad', title: '能量消耗', desc: `ta的${dm2}克你，盲目跟可能亏更多` }); }
-  else { insights.push({ type: 'neutral', title: '各有所长', desc: `${dm1}与${dm2}关系中性，取长补短` }); }
-
-  const yours = analyzeAssetMatch(dm1, asset.wuxing);
-  const theirs = analyzeAssetMatch(dm2, asset.wuxing);
-  score += yours.score + Math.floor(theirs.score * 0.5);
-
+  const assetW = asset.wuxing;
+  
+  // 1. 你与标的匹配（35%权重）
+  const yours = analyzeAssetMatch(dm1, assetW);
+  const yoursWeighted = yours.score * 0.35;
+  
+  // 2. ta与标的匹配（25%权重）
+  const theirs = analyzeAssetMatch(dm2, assetW);
+  const theirsWeighted = theirs.score * 0.25;
+  
+  // 3. 两人财运关系（25%权重）
+  const relationship = analyzeRelationship(dm1, dm2, assetW);
+  const relationWeighted = relationship.score * 0.25;
+  
+  // 4. 日期择时（15%权重）
   const dateBazi = getBazi(date.getFullYear(), date.getMonth() + 1, date.getDate(), 12);
-  const dateW = WUXING[dateBazi.day.gan];
-  let dateScore = 0, dateText = '';
-  if (XIANGSHENG[dateW] === dm1 || XIANGSHENG[dateW] === asset.wuxing) { dateScore = 8; dateText = `${dateBazi.day.gan}日属${dateW}，能量顺畅，timing不错`; }
-  else if (XIANGKE[dateW] === dm1) { dateScore = -5; dateText = `${dateBazi.day.gan}日克你，今天决策易冲动，建议冷静几天`; }
-  else { dateText = `${dateBazi.day.gan}日能量中性，不好不坏`; }
-  score += dateScore;
-
-  return { score: Math.min(98, Math.max(12, score)), dm1, dm2, insights, yours, theirs, dateText, dateGan: dateBazi.day.gan };
+  const dateTiming = analyzeDateTiming(dateBazi.day.gan, dm1, assetW);
+  const dateWeighted = dateTiming.score * 0.15;
+  
+  // 汇总得分
+  const totalScore = Math.round(yoursWeighted + theirsWeighted + relationWeighted + dateWeighted);
+  const finalScore = Math.min(98, Math.max(12, totalScore));
+  
+  // 生成洞察
+  const insights = [relationship.insight];
+  
+  // 添加标的匹配洞察
+  if (yours.score >= 75) {
+    insights.push({ type: 'great', title: '你有财缘', desc: `你与${asset.name}（${assetW}）命理相合，这是你的财` });
+  } else if (yours.score <= 30) {
+    insights.push({ type: 'bad', title: '标的不合', desc: `${asset.name}（${assetW}）与你相克，谨慎为上` });
+  }
+  
+  if (theirs.score >= 75 && yours.score < 75) {
+    insights.push({ type: 'warn', title: 'ta比你更适合', desc: `ta与${asset.name}更有财缘，但ta的财不等于你的财` });
+  } else if (theirs.score >= 75 && yours.score >= 75) {
+    insights.push({ type: 'great', title: '双双有财', desc: `你俩都与${asset.name}有缘，这个建议靠谱` });
+  }
+  
+  return { 
+    score: finalScore, 
+    dm1, 
+    dm2, 
+    insights: insights.filter(Boolean),
+    yours, 
+    theirs, 
+    relationship,
+    dateText: dateTiming.text, 
+    dateGan: dateBazi.day.gan,
+    // 分项得分（用于展示）
+    breakdown: {
+      youAsset: Math.round(yours.score),
+      theyAsset: Math.round(theirs.score),
+      relation: Math.round(relationship.score),
+      timing: Math.round(dateTiming.score)
+    }
+  };
 }
 
 function getVerdict(score) {
-  if (score >= 80) return { text: '神仙搭档', emoji: '🔥', color: '#4ade80', gradient: 'linear-gradient(135deg, #4ade80, #22c55e)', advice: '这建议值得认真听！你俩财运同频，冲就完事' };
-  if (score >= 65) return { text: '可以参考', emoji: '👍', color: '#60a5fa', gradient: 'linear-gradient(135deg, #60a5fa, #3b82f6)', advice: '整体还行，但保持独立思考，别无脑跟' };
-  if (score >= 50) return { text: '谨慎考虑', emoji: '🤔', color: '#fbbf24', gradient: 'linear-gradient(135deg, #fbbf24, #f59e0b)', advice: '契合度一般，多找几个人意见对比下' };
-  if (score >= 35) return { text: '不太搭', emoji: '😬', color: '#fb923c', gradient: 'linear-gradient(135deg, #fb923c, #f97316)', advice: 'ta在这标的上不是你财运贵人，换个人问' };
-  return { text: '别听', emoji: '🙅', color: '#f87171', gradient: 'linear-gradient(135deg, #f87171, #ef4444)', advice: '你俩八字不合，ta的建议大概率不适合你' };
+  if (score >= 80) return { text: '神仙搭档', emoji: '🔥', color: '#4ade80', gradient: 'linear-gradient(135deg, #4ade80, #22c55e)', advice: '天时地利人和！这个建议值得认真考虑，冲就完事' };
+  if (score >= 65) return { text: '可以参考', emoji: '👍', color: '#60a5fa', gradient: 'linear-gradient(135deg, #60a5fa, #3b82f6)', advice: '整体不错，但记得保持独立判断，别无脑跟' };
+  if (score >= 50) return { text: '谨慎考虑', emoji: '🤔', color: '#fbbf24', gradient: 'linear-gradient(135deg, #fbbf24, #f59e0b)', advice: '契合度一般，建议多做研究，或换个人问问' };
+  if (score >= 35) return { text: '不太搭', emoji: '😬', color: '#fb923c', gradient: 'linear-gradient(135deg, #fb923c, #f97316)', advice: '命理上不太适合听ta这个建议，三思而后行' };
+  return { text: '别听', emoji: '🙅', color: '#f87171', gradient: 'linear-gradient(135deg, #f87171, #ef4444)', advice: '你俩在这事上八字不合，ta的建议大概率不适合你' };
 }
 
 export default function HeCaiApp() {
